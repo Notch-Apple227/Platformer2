@@ -1,0 +1,21 @@
+make cameru update func
+camera trigger
+one time use function
+
+datagen xstartpos,ystartpos
+
+animation class
+#button class
+coyote time
+hold jump
+
+pause
+multithreading
+
+world class
+
+##current  multithreading[animdicts], loading screen,main menu
+
+blit priority?
+
+text box
