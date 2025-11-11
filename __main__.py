@@ -72,6 +72,10 @@ flag = pg.SCALED #| pg.FULLSCREEN
 screen = pg.display.set_mode((480, 270), flags=flag)
 clock = pg.time.Clock()
 
+#thread events
+
+loadfin = threading.Event()
+
 # Handlers
 
 handler = Resourcehandler()
@@ -99,7 +103,10 @@ def imageloader():
         pg.display.flip()
         time.sleep(0.1)
 
+
+
     allloadbarrier.wait()
+    loadfin.set()
 
 def loadingscreen():
 
@@ -108,52 +115,63 @@ def loadingscreen():
 
     while True:
         events = pg.event.get()
-
         for event in events:
             if event.type == pg.QUIT:
                 running = False
 
-        #writer = pg.font.Font(None,32)
+        if loadfin.is_set():
+            break
 
 
 
+    handler.imgs["xph"].set_colorkey(handler.imgs["xph"].get_at((0,0)),pg.RLEACCEL)
+    for im in handler.imgs:
+        if "jump" in im:
+            handler.imgs[im].set_colorkey(handler.imgs[im].get_at((0,0)),pg.RLEACCEL)
 
 
-        imagethread.join()
-        handler.imgs["xph"].set_colorkey(handler.imgs["xph"].get_at((0,0)),pg.RLEACCEL)
-        for im in handler.imgs:
-            if "jump" in im:
-                handler.imgs[im].set_colorkey(handler.imgs[im].get_at((0,0)),pg.RLEACCEL)
+    print("AFTER")
+    #print(handler.__dict__)
+    #handler.addimg("xph",Resource("Player","xph.png","image",colorkey = -1, scale = 0.5).load())
+    #xres = Resource("x.png","image",colorkey = -1, scale = 0.5)
+    #global blockph,xph,bph,xrimages,xlimages,p1animdict
+    #blockph = load_image("blocksmallnew16.png")[0]
+    #xph = load_image("x.png", scale=0.5, colorkey=-1)[0]
+    #xph = xres.load()
+    bph = load_image("block.png")[0]
+
+    #xrimages = [pg.transform.rotate(handler.imgs['xph'], i) for i in range(0, -90, -5)]
+    xrimages = [handler.imgs[f"jump{z}"] for z in range(1,13)]
+    rightanimobj = Animobj(3,*xrimages)
+    #xrimages = [handler.imgs[z] if "jump" in z else   for z in sorted([im for im in handler.imgs])]
+
+    xlimages = [pg.transform.flip(im,True,False) for im in xrimages]
+    leftanimobj = Animobj(3, *xlimages)
+
+    rjumpimages = [pg.transform.scale_by(handler.imgs['xph'], math.sin(math.radians(i))) for i in range(45,135,5)]
+    rjumpanimobj = Animobj(2, *rjumpimages)
+
+    ljumpimages = [pg.transform.flip(im,True,False) for im in rjumpimages]
+    ljumpanimobj = Animobj(2, *ljumpimages)
+
+    righttojump = [pg.transform.scale_by(handler.imgs['xph'], math.sin(math.radians(i))) for i in range(90,30,-10)]
+    rtojumpanimobj = Animobj(3, *righttojump)
+
+    lefttojump = [pg.transform.flip(im,True,False) for im in righttojump]
+    ltojumpanimobj = Animobj(3, *lefttojump)
+
+    ridleanimobj = Animobj(60, *[handler.imgs['xph']])
+    lidleanimobj = Animobj(60, *[pg.transform.flip(handler.imgs["xph"],True,False)])
+
+    p1animdict = {"move_right": rightanimobj, "move_left": leftanimobj,
+                  "right_idle": ridleanimobj,
+                  "left_idle": lidleanimobj,
+                  "right_jump": rjumpanimobj,
+                  "left_jump" : ljumpanimobj,
+                  "transition_right_jump": rtojumpanimobj,"transition_left_jump": ltojumpanimobj}
+    handler.addanimdict("p1animdict",p1animdict)
 
 
-        print("AFTER")
-        print(handler.__dict__)
-        #handler.addimg("xph",Resource("Player","xph.png","image",colorkey = -1, scale = 0.5).load())
-        #xres = Resource("x.png","image",colorkey = -1, scale = 0.5)
-        #global blockph,xph,bph,xrimages,xlimages,p1animdict
-        #blockph = load_image("blocksmallnew16.png")[0]
-        #xph = load_image("x.png", scale=0.5, colorkey=-1)[0]
-        #xph = xres.load()
-        bph = load_image("block.png")[0]
-        xrimages = [pg.transform.rotate(handler.imgs['xph'], i) for i in range(0, -90, -5)]
-        xrimages = [handler.imgs[f"jump{z}"] for z in range(1,13)]
-
-        #xrimages = [handler.imgs[z] if "jump" in z else   for z in sorted([im for im in handler.imgs])] 
-        xlimages = [pg.transform.flip(im,True,False) for im in xrimages]
-        rjumpimages = [pg.transform.scale_by(handler.imgs['xph'], math.sin(math.radians(i))) for i in range(45,135,5)]
-        ljumpimages = [pg.transform.flip(im,True,False) for im in rjumpimages]
-        righttojump = [pg.transform.scale_by(handler.imgs['xph'], math.sin(math.radians(i))) for i in range(90,30,-10)]
-        lefttojump = [pg.transform.flip(im,True,False) for im in righttojump]
-
-        p1animdict = {"move_right": (xrimages, 3), "move_left": (xlimages, 3),
-                      "right_idle": ([handler.imgs['xph']], 60),
-                      "left_idle": ([pg.transform.flip(handler.imgs["xph"],True,False)], 60),
-                      "right_jump": (rjumpimages,2),
-                      "left_jump" : (ljumpimages,2),
-                      "transition_right_jump": (righttojump, 3),"transition_left_jump": (lefttojump, 3)}
-        handler.addanimdict("p1animdict",p1animdict)
-        
-        break
 def levelloading():
     pass
 def level():
@@ -199,21 +217,21 @@ def level():
     velo = Vector(0, 0)
     velo2 = Vector(140, -300)
 
-    player = Player(velocity = velo, phobj = handler.imgs["xph"] ,animimages=handler.animdicts['p1animdict'],accel = pg.Vector2(0,0))
-    player2 = Player(velocity = velo2, phobj = handler.imgs["xph"],accel = pg.Vector2(0,0),animimages = handler.animdicts['p1animdict'],keys = (pg.K_w,pg.K_s,pg.K_a,pg.K_d))
+    player = Player(velocity = velo, phobj = handler.imgs["xph"] ,animdict=handler.animdicts['p1animdict'],accel = pg.Vector2(0,0))
+    player2 = Player(velocity = velo2, phobj = handler.imgs["xph"],accel = pg.Vector2(0,0),animdict = handler.animdicts['p1animdict'],keys = (pg.K_w,pg.K_s,pg.K_a,pg.K_d))
     player.place((100,200))
     player2.place((200,200))
 
 
     #flrrect = Block.build(pt1, pt2, "blocksmall.png", floorblklist)
 
-    psprites = pg.sprite.RenderPlain(player,player2)
+    psprites = pg.sprite.Group(player,player2)
     blocksprites = pg.sprite.Group(blklist)
-    btnsprites = pg.sprite.RenderPlain(tempbtn)
-    allsprites = pg.sprite.RenderPlain(psprites,blocksprites)
+    btnsprites = pg.sprite.Group(tempbtn)
+    allsprites = pg.sprite.Group(psprites,blocksprites)
 
     #staticrectlist.append(flrrect)
-    pcam = Camera(player,[32,176],screen,((-5*16,-20*16),(175*16,50*16)),allsprites)
+    pcam = Camera(player,[32,176],screen,((-5* unimulti,-20* unimulti),(175* unimulti,50* unimulti)),allsprites)
     #bgcam = Camera(player,[300,420],screen,((-500*20,-500*20),(500*20,500*20)),allsprites)
 
     def throwp(player):
@@ -263,11 +281,10 @@ def level():
         btnsprites.draw(screen)
         pcam.follow()
         pg.display.flip()
-        dt = clock.tick(30)/1000
+        dt = clock.tick(60)/1000
         t += dt
 
-        print(player.animstates
-              )
+
     pg.quit()
 
 
